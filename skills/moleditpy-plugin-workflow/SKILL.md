@@ -72,18 +72,36 @@ n-alkane solvents are `n-` prefixed (but plain `Heptane` IS official).
 
 ```bash
 git init -b main && git add -A && git commit
-export GH_TOKEN=$(printf "protocol=https\nhost=github.com\n\n" | git credential fill | sed -n "s/^password=//p")
 gh repo create HiroYokoyama/<repo> --public --source . --push --description "..."
 ```
 
-`gh` is not logged in on this machine — the `GH_TOKEN`-from-git-credential trick above
-is required (do NOT `gh auth login --with-token`; the gho_ token lacks read:org).
+`gh` is now authenticated on this machine (user logged in 2026-07-22) — just call
+`gh`/`gh api`/`gh run` directly, no token export needed. (Historical note: before
+that, `gh` was logged out and required a `GH_TOKEN=$(… git credential fill …)` trick;
+that is no longer necessary.)
 Commit small chunks; push to main is fine once the repo exists, but tags/releases wait
 for the user's explicit word.
 
 ## 5. Release + registry registration (only when user says "push tag")
 
+0. **Push commits to `main` and watch the Tests CI go green BEFORE pushing any tag.**
+   A tag cannot be un-released cleanly, so never tag on red or unverified CI. After
+   `git push origin main`, wait for the run and require success:
+   ```bash
+   gh run watch <run-id> --repo HiroYokoyama/<repo> --exit-status
+   ```
+   CI installs **pytest only** (no PyQt6/RDKit/numpy), so any test file that imports
+   host deps at module load MUST `pytest.skip(..., allow_module_level=True)` when they
+   are absent — otherwise it errors at *collection* (not skip) and reds the run.
+   Simulate CI locally before pushing with a `sys.meta_path` finder that raises
+   `ModuleNotFoundError` for PyQt6/rdkit/numpy, run under
+   `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` (drops pytest-qt/pytest-cov so their own PyQt6
+   import doesn't mask the test), and confirm the files report *skipped*, not *error*.
+   Note the Release workflow triggers on the tag independently of the Tests workflow —
+   a green release job does NOT imply Tests passed, so check Tests explicitly.
 1. Tag must equal `PLUGIN_VERSION`: `git tag v0.1.0 && git push origin v0.1.0`.
+   If host source code changed since the last release, the version MUST already be
+   bumped (tests-only changes do not bump). Never move/re-point an existing tag.
 2. release.yml verifies the version, zips the package (README+LICENSE copied in),
    creates the GitHub release with asset `<pkg>_<ver>.zip`.
 3. Registry auto-dispatch requires the `REGISTRY_PAT` secret; new repos DON'T have it.
@@ -96,3 +114,20 @@ for the user's explicit word.
    moleditpy-plugins clone (`git pull --ff-only`) before any local registry work** —
    never edit plugins.json manually anyway (script-maintained).
 5. Verify the entry: version, tags, dependencies, sha256, downloadUrl.
+
+Gotchas seen registering the Auto Rotator (2026-07-22):
+- `register_remote_plugin.py`'s **new-entry** path historically dropped `supported_os`
+  (never copied it from `PLUGIN_SUPPORTED_OS` nor applied `DEFAULT_OS_LIST`), so the
+  first registration of a brand-new remote plugin failed `test_registry`
+  (`supported_os must be a non-empty list, got None`). Fixed to emit `supported_os`
+  AND to build new entries in the canonical field order (`projectUrl` right after
+  `authorUrl`; `supported_python_version` + `supported_os` trailing). If a new-plugin
+  registration reds on `supported_os`, that fix regressed.
+- `REGISTRY/plugins.json` is committed **LF** (`.gitattributes: * -text` = no git eol
+  conversion). The script writes LF, so a clean run = a ~30-line append diff. If you
+  ever see the *whole file* diff, you flipped line endings (e.g. a stray CRLF pass) —
+  normalize back to LF (`d.replace(b'\r\n', b'\n')`), don't commit the flip.
+- When the plugin's release repo lacks the `REGISTRY_PAT` secret you can register
+  locally instead of dispatching: run `register_remote_plugin.py <release-asset-url>`
+  (no `--dry-run`) in the moleditpy-plugins clone, then `update_intra_repo_metadata.py`
+  (must report 0 changes), run `pytest tests/test_registry.py`, and commit+push.
