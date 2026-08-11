@@ -31,6 +31,7 @@ PLUGIN_DESCRIPTION = "..."
 PLUGIN_CATEGORY = "Export"        # or Visualization / Optimization / ...
 PLUGIN_TAGS = ["...", "..."]      # minimal; flows into registry
 PLUGIN_DEPENDENCIES = []          # only pip extras beyond host (PyQt6/rdkit = host)
+PLUGIN_OPTIONAL_DEPENDENCIES = [] # extra-feature packages; installer never gates install on these
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 ```
 

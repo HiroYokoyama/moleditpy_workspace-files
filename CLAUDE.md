@@ -77,6 +77,21 @@ Every plugin follows the same contract:
 
 See `python_molecular_editor/docs/PLUGIN_DEVELOPMENT_MANUAL_V4.md` for the full API.
 
+## Comparing Versions
+
+A plugin's version is written down in three places: `PLUGIN_VERSION` in its source, its
+`REGISTRY/plugins.json` entry in `moleditpy-plugins`, and the footer of its
+`moleditpy-plugins.wiki` page. One command compares all three (and flags registry plugins
+missing from the wiki catalogue), exiting non-zero on any disagreement:
+
+```bash
+python G:/DEV_MAIN/check_wiki_versions.py
+```
+
+Source ahead of the registry is normal for an unreleased bump; the registry ahead of the
+wiki means the wiki page needs updating. Wiki pages deliberately carry no version at the
+top — only a footer stating which version the page documents and when it was written.
+
 ## Cross-Repo Dependency
 
 When the main app's `PluginContext` API changes, all plugin repos may need updates. The `moleditpy_pyscf-calculator` CI (`test-integration` job) clones the main app from GitHub to catch these regressions automatically. Most other plugin repos ship a `tests/plugin_api_checker.py` (with a `.moleditpy-api-allowlist`) that statically verifies every `mw.*`/`context.*` access against the main-app source when the repos are checked out as siblings (`tests/test_api.py`; skipped if the main app is absent).
