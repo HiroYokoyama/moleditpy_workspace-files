@@ -92,6 +92,22 @@ Source ahead of the registry is normal for an unreleased bump; the registry ahea
 wiki means the wiki page needs updating. Wiki pages deliberately carry no version at the
 top — only a footer stating which version the page documents and when it was written.
 
+## Backing Up the Root Files
+
+The workspace's own files — the root scripts and docs, plus `.claude/agents/` and
+`.claude/skills/` — are backed up in the `moleditpy_workspace-files` repo. One command
+copies the allowlist across, commits, and pushes:
+
+```bash
+python G:/DEV_MAIN/backup_workspace_files.py --push
+```
+
+Drop `--push` to commit only, `--dry-run` to preview. The allowlist is the `ALLOWLIST`
+table at the top of the script — add new root files there or they are not backed up.
+Everything outside it (the plugin repos, `note/`, `other/`, scratch directories) is never
+read. Files that exist only in the backup, like the Codex `AGENTS.md`, are left alone
+unless you pass `--prune`.
+
 ## Cross-Repo Dependency
 
 When the main app's `PluginContext` API changes, all plugin repos may need updates. The `moleditpy_pyscf-calculator` CI (`test-integration` job) clones the main app from GitHub to catch these regressions automatically. Most other plugin repos ship a `tests/plugin_api_checker.py` (with a `.moleditpy-api-allowlist`) that statically verifies every `mw.*`/`context.*` access against the main-app source when the repos are checked out as siblings (`tests/test_api.py`; skipped if the main app is absent).
