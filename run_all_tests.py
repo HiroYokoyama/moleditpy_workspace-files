@@ -4,8 +4,10 @@
 """
 MoleditPy Workspace Test Runner
 
-Discovers and runs every test suite in DEV_MAIN: the main application, all
-plugin repos, the installer and the standalone tools.
+Discovers and runs every MoleditPy test suite in DEV_MAIN: the main
+application, all plugin repos and the installer. The other projects that share
+the workspace (pymatgen-core, Cerberus-Retro, chem_db_web, ...) are out of
+scope and only run with --outside.
 
 Two things the naive "pytest tests/ in every directory" approach misses, and
 that this runner handles:
@@ -18,12 +20,13 @@ that this runner handles:
   import a real PyQt6 over the tests' module-level stubs.
 
 Usage:
-    python run_all_tests.py                 # everything
+    python run_all_tests.py                 # every MoleditPy suite
     python run_all_tests.py --list          # show what would run, run nothing
     python run_all_tests.py --only orca     # only suites whose name matches
-    python run_all_tests.py --skip pymatgen # drop matching suites
+    python run_all_tests.py --skip job      # drop matching suites
     python run_all_tests.py -j 4            # run 4 suites concurrently
     python run_all_tests.py --full-gui      # add the main app's full_gui tier
+    python run_all_tests.py --outside       # include the non-MoleditPy projects
 """
 
 import argparse
@@ -48,6 +51,11 @@ EXCLUDED_DIRS = {
     # of THIS script, so auto-detecting a runner there would recurse.
     "moleditpy_workspace-files",
 }
+
+# Only the MoleditPy ecosystem is in scope. Everything else in the workspace is
+# a separate project (or vendored upstream, like pymatgen-core) whose suite is
+# not ours to keep green -- run those with --outside if you want them.
+IN_SCOPE_PREFIXES = ("moleditpy", "python_molecular_editor")
 
 # Runner scripts a repo may ship at its root, in preference order.
 REPO_RUNNERS = ("run_tests.py", "test_all.py")
@@ -98,7 +106,7 @@ def _main_app_src(workspace_dir):
     return os.path.join(workspace_dir, "python_molecular_editor", "moleditpy", "src")
 
 
-def discover_suites(workspace_dir, full_gui=False):
+def discover_suites(workspace_dir, full_gui=False, outside=False):
     """Build the suite list for every test-bearing directory in the workspace."""
     suites = []
     main_app_src = _main_app_src(workspace_dir)
@@ -106,6 +114,8 @@ def discover_suites(workspace_dir, full_gui=False):
     for item in sorted(os.listdir(workspace_dir)):
         path = os.path.join(workspace_dir, item)
         if not os.path.isdir(path) or item in EXCLUDED_DIRS or item.endswith(".wiki"):
+            continue
+        if not outside and not item.startswith(IN_SCOPE_PREFIXES):
             continue
 
         # The main app has a tiered runner; with no tier flag it runs UNIT +
@@ -234,6 +244,12 @@ def main():
         help="also run the main app's full_gui tier (needs a real display)",
     )
     parser.add_argument(
+        "--outside",
+        action="store_true",
+        help="also run the non-MoleditPy projects in the workspace "
+        "(pymatgen-core, Cerberus-Retro, chem_db_web, ...)",
+    )
+    parser.add_argument(
         "-j",
         "--jobs",
         type=int,
@@ -243,7 +259,9 @@ def main():
     )
     args = parser.parse_args()
 
-    suites = discover_suites(WORKSPACE_DIR, full_gui=args.full_gui)
+    suites = discover_suites(
+        WORKSPACE_DIR, full_gui=args.full_gui, outside=args.outside
+    )
     if args.only:
         needles = [n.lower() for n in args.only]
         suites = [s for s in suites if any(n in s.name.lower() for n in needles)]
