@@ -54,7 +54,6 @@ Discovers and executes test suites across all repositories in `DEV_MAIN` in a si
 | `moleditpy-mcp_server/` | **MCP Server** — Model Context Protocol integration |
 | `moleditpy-plugins/` | **Plugin Registry** & official plugin manifest |
 | `python_molecular_editor_installer/` | **Installer Toolkit** — Desktop installer & shortcuts |
-| `chem_db_web/` | **Web Application** — Molecular DB web interface |
 | `moleditpy_3d-molecule-on-2d/` | Plugin: 3D molecule overlay on 2D sketch |
 | `moleditpy_auto_rotator/` | Plugin: Auto rotator |
 | `moleditpy_blender-export-pro/` | Plugin: Blender 3D Export Pro |

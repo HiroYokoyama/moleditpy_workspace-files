@@ -5,15 +5,14 @@
 MoleditPy Workspace Test Runner
 
 Discovers and runs every MoleditPy test suite in DEV_MAIN: the main
-application, all plugin repos and the installer. The other projects that share
-the workspace (pymatgen-core, Cerberus-Retro, chem_db_web, ...) are out of
-scope and only run with --outside.
+application, all plugin repos and the installer. Other external projects that
+share the workspace are out of scope and only run with --outside.
 
 Two things the naive "pytest tests/ in every directory" approach misses, and
 that this runner handles:
 
 * a repo can hold more than one suite (moleditpy-plugins has tests/ *and*
-  tests_gui/; matplotlib_graph_app keeps its tests under hygrapher/tests/);
+  tests_gui/; nested packages may keep tests under <subpkg>/tests/);
 * a repo that ships its own runner script is invoked through it, because that
   script is what makes a local run match CI -- it pins the Qt binding, or sets
   PYTEST_DISABLE_PLUGIN_AUTOLOAD so a locally installed pytest-qt does not
@@ -64,7 +63,6 @@ REPO_RUNNERS = ("run_tests.py", "test_all.py")
 TIMEOUTS = {
     "python_molecular_editor": 3600,
     "python_molecular_editor [full_gui]": 1800,
-    "pymatgen-core": 3600,
     "moleditpy-plugins": 1200,
     "moleditpy-plugins [gui]": 1800,
     "moleditpy_job_manager": 1200,
@@ -152,7 +150,7 @@ def discover_suites(workspace_dir, full_gui=False, outside=False):
             suites.append(Suite(item, path, _pytest("tests/")))
         else:
             # Not a repo root layout: look one level down for a package that
-            # holds its own tests/ (e.g. matplotlib_graph_app/hygrapher/tests).
+            # holds its own tests/ (e.g. package/tests).
             for sub in sorted(os.listdir(path)):
                 sub_path = os.path.join(path, sub)
                 if sub.startswith((".", "_")) or not os.path.isdir(sub_path):
@@ -246,8 +244,7 @@ def main():
     parser.add_argument(
         "--outside",
         action="store_true",
-        help="also run the non-MoleditPy projects in the workspace "
-        "(pymatgen-core, Cerberus-Retro, chem_db_web, ...)",
+        help="also run non-MoleditPy projects in the workspace",
     )
     parser.add_argument(
         "-j",

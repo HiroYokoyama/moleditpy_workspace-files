@@ -67,7 +67,7 @@ n-alkane solvents are `n-` prefixed (but plain `Heptane` IS official).
 - Qt-logic testing technique: bind unbound methods to `SimpleNamespace` with small
   stateful fake widgets; guard `self.<widget>` access in product code with `getattr`.
 - Windows: use the full interpreter path
-  `C:/Users/hiro2/AppData/Local/Programs/Python/Python313/python.exe -m pytest`.
+  (e.g. `%LOCALAPPDATA%/Programs/Python/Python313/python.exe -m pytest`) if the python alias fails.
 
 ## 4. Publish repo
 
