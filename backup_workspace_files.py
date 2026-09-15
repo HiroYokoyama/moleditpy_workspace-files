@@ -27,6 +27,7 @@ ALLOWLIST = [
     ("CLAUDE.md", "CLAUDE.md"),
     ("README.md", "README.md"),
     ("check_wiki_versions.py", "check_wiki_versions.py"),
+    ("check_issues_prs.py", "check_issues_prs.py"),
     ("backup_workspace_files.py", "backup_workspace_files.py"),
     ("run_all", "run_all"),
     ("run_all.bat", "run_all.bat"),

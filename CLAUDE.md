@@ -107,6 +107,22 @@ Source ahead of the registry is normal for an unreleased bump; the registry ahea
 wiki means the wiki page needs updating. Wiki pages deliberately carry no version at the
 top — only a footer stating which version the page documents and when it was written.
 
+## Outstanding Work Across the Repos
+
+One command surveys every repo for things still open — open issues and PRs (two
+`gh search` calls, not one per repo) plus what each sibling checkout is holding that
+GitHub has not seen: uncommitted files, unpushed commits, a branch behind origin, a
+detached HEAD, a missing upstream.
+
+```bash
+python G:/DEV_MAIN/check_issues_prs.py
+```
+
+`--local-only` / `--remote-only` run one half. `--fail-on-open` exits non-zero when
+anything is outstanding, so it works as a pre-push gate. `--tags` additionally looks for
+unpushed tags, but that costs a network round trip per repo (2.5s → ~45s), so it is off
+by default. Authentication comes from `gh`; the script never reads or stores a token.
+
 ## Backing Up the Root Files
 
 The workspace's own files — the root scripts and docs, plus `.claude/agents/` and
