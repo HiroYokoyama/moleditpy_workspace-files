@@ -77,6 +77,21 @@ Every plugin follows the same contract:
 
 See `python_molecular_editor/docs/PLUGIN_DEVELOPMENT_MANUAL_V4.md` for the full API.
 
+## Line Endings
+
+Line endings matter in exactly one repo: **`moleditpy-plugins`**. It ships plugin files
+as-is (raw `.py` / `.zip` served straight from the repo) and `REGISTRY/plugins.json`
+records a `sha256` over those exact bytes, which the Plugin Installer verifies after
+download. A CRLF/LF flip changes the bytes, breaks the hash, and aborts the install. That
+is why it is the only repo carrying a `.gitattributes` with `* -text` — keep it, and
+preserve each file's existing endings when editing there.
+
+Every other repo has no `.gitattributes`, so the global `core.autocrlf=true` normalises
+freely and nothing downstream depends on the bytes. Endings are still per-file rather
+than per-repo (a CRLF file can sit in an otherwise-LF tree), so match the file you are
+editing to avoid whole-file diffs — but outside `moleditpy-plugins` this is diff hygiene,
+not correctness.
+
 ## Comparing Versions
 
 A plugin's version is written down in three places: `PLUGIN_VERSION` in its source, its
