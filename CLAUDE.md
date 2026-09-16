@@ -158,13 +158,18 @@ A plain run produces four things per repository, all of them on by default:
 | `metadata/<name>/` | `issues.json`, `pulls.json`, `releases.json` — also not in git |
 
 Recovery is `git clone backup_github/repos/<name>.git` or `git clone <name>.bundle <dir>`.
-Everything is incremental: mirrors do `remote update --prune`, a bundle is rewritten only
-when its refs differ from the mirror's, and an already-downloaded release tag is skipped.
 `manifest.json` records each mirror's HEAD, ref count, bundle state and release tag.
 
+Each run **deletes the existing backup and fetches it again**, so nothing stale — a
+superseded release, a repository that no longer exists on GitHub — survives into the new
+copy. The wipe refuses to touch a directory that is not one of ours (no `manifest.json`,
+unfamiliar contents), which is the guard against a mistyped `--dest`. `--incremental`
+keeps what is there and updates it in place instead: mirrors do `remote update --prune`,
+a bundle is rewritten only when its refs differ, an already-downloaded release is skipped.
+
 `--dest` picks another location (or set `MOLEDITPY_BACKUP_DIR`), `--dry-run` lists the
-selection, `--all-releases` takes every release instead of just the latest, and
-`--no-bundle` / `--no-releases` / `--no-metadata` / `--no-wiki` trim a run down.
+selection and deletes nothing, `--all-releases` takes every release instead of just the
+latest, and `--no-bundle` / `--no-releases` / `--no-metadata` / `--no-wiki` trim a run down.
 
 ## Cross-Repo Dependency
 

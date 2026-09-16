@@ -10,9 +10,15 @@ latest release's assets live outside git, so they are saved beside the mirrors
 too. Everything a full run produces is therefore on by default; the --no-* flags
 trim it down.
 
+Each run starts from an empty destination: an existing backup is deleted and
+fetched again, so nothing stale -- a superseded release, a repository that no
+longer exists on GitHub -- survives into the new copy. Pass --incremental to
+keep what is there and update it in place instead.
+
   python G:/DEV_MAIN/backup_github_repos.py                   # the full backup
   python G:/DEV_MAIN/backup_github_repos.py --dest E:/backup  # ... elsewhere
   python G:/DEV_MAIN/backup_github_repos.py --all-releases    # every release, not just the latest
+  python G:/DEV_MAIN/backup_github_repos.py --incremental      # update in place, delete nothing
   python G:/DEV_MAIN/backup_github_repos.py --no-bundle --no-releases   # mirrors and metadata only
   python G:/DEV_MAIN/backup_github_repos.py --all             # every non-fork repository
   python G:/DEV_MAIN/backup_github_repos.py --dry-run         # list what would run
@@ -24,6 +30,8 @@ import datetime
 import fnmatch
 import json
 import os
+import shutil
+import stat
 import subprocess
 import sys
 
@@ -65,6 +73,32 @@ def list_repos(include_forks, patterns, take_all):
         if take_all or any(fnmatch.fnmatch(name, p.lower()) for p in patterns):
             selected.append(repo)
     return sorted(selected, key=lambda r: r["name"].lower())
+
+
+def force_remove(func, path, _exception):
+    """rmtree callback: git keeps pack files read-only, which Windows enforces."""
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
+
+def wipe(dest):
+    """Empty the destination so the run cannot inherit anything stale.
+
+    Only a directory this script produced is removed: anything else is a
+    mistyped --dest, and deleting it would be the worst kind of surprise.
+    """
+    if not os.path.exists(dest):
+        return "fresh"
+    ours = os.path.isfile(os.path.join(dest, "manifest.json")) or set(os.listdir(dest)) <= {
+        "repos", "bundles", "releases", "metadata", "manifest.json"
+    }
+    if not ours:
+        sys.exit(
+            "{} is not a backup directory (no manifest.json, unfamiliar contents) -- "
+            "refusing to delete it.".format(os.path.abspath(dest))
+        )
+    shutil.rmtree(dest, onerror=force_remove)
+    return "deleted the previous backup"
 
 
 def mirror(url, path):
@@ -227,6 +261,8 @@ def main():
     parser.add_argument("--pattern", action="append", default=[], help="extra name pattern (repeatable)")
     parser.add_argument("--all", action="store_true", help="back up every repository, not just moleditpy ones")
     parser.add_argument("--include-forks", action="store_true", help="also back up forks (rdkit, pymatgen: large)")
+    parser.add_argument("--incremental", action="store_true",
+                        help="update the existing backup in place instead of deleting it first")
     parser.add_argument("--no-bundle", action="store_true", help="skip the single-file .bundle per mirror")
     parser.add_argument("--all-releases", action="store_true", help="download every release, not just the latest")
     parser.add_argument("--no-releases", action="store_true", help="skip release assets")
@@ -251,6 +287,8 @@ def main():
                 repo["name"], repo["diskUsage"], "private" if repo["isPrivate"] else ""))
         return 0
 
+    if not args.incremental:
+        print("  " + wipe(args.dest))
     os.makedirs(args.dest, exist_ok=True)
     entries = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
