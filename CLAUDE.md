@@ -148,17 +148,23 @@ A full off-GitHub copy of every moleditpy repository — `moleditpy*` plus
 python G:/DEV_MAIN/backup_github_repos.py
 ```
 
-Each becomes a bare `--mirror` clone under `backup_github/repos/<name>.git` (every
-branch, tag and note), so recovery is `git clone backup_github/repos/<name>.git`. Re-runs
-are incremental (`remote update --prune`). `--dest` picks another location (or set
-`MOLEDITPY_BACKUP_DIR`), `--dry-run` lists the selection, `--releases` and `--metadata`
-additionally pull release assets and issues/PRs as JSON — neither lives in git.
-`manifest.json` records each mirror's HEAD and ref count.
+A plain run produces four things per repository, all of them on by default:
 
-`--bundle` additionally packs each mirror into a single file, `bundles/<name>.bundle`,
-which is what you copy to external media — one file per repository, cloned back with
-`git clone <name>.bundle <dir>`. A bundle is rewritten only when its refs differ from the
-mirror's, so repeat runs on unchanged repositories cost nothing.
+| Directory | What |
+|---|---|
+| `repos/<name>.git` | bare `--mirror` clone — every branch, tag and note (plus `<name>.wiki.git`) |
+| `bundles/<name>.bundle` | the same history as one file, for copying onto external media |
+| `releases/<name>/<tag>/` | the **latest** release's assets — they are not in git |
+| `metadata/<name>/` | `issues.json`, `pulls.json`, `releases.json` — also not in git |
+
+Recovery is `git clone backup_github/repos/<name>.git` or `git clone <name>.bundle <dir>`.
+Everything is incremental: mirrors do `remote update --prune`, a bundle is rewritten only
+when its refs differ from the mirror's, and an already-downloaded release tag is skipped.
+`manifest.json` records each mirror's HEAD, ref count, bundle state and release tag.
+
+`--dest` picks another location (or set `MOLEDITPY_BACKUP_DIR`), `--dry-run` lists the
+selection, `--all-releases` takes every release instead of just the latest, and
+`--no-bundle` / `--no-releases` / `--no-metadata` / `--no-wiki` trim a run down.
 
 ## Cross-Repo Dependency
 

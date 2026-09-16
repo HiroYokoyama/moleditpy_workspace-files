@@ -4,15 +4,18 @@ Asks gh for the account's repositories, keeps the ones whose name matches the
 moleditpy patterns, and keeps a bare `--mirror` clone of each under the backup
 directory. A mirror carries every branch, tag and note, so a lost repository is
 restored with a plain `git clone <backup>/repos/<name>.git`. Wiki repositories
-are mirrored alongside their repository; release assets and issue/PR metadata
-live outside git and are fetched only when asked for.
+are mirrored alongside their repository, and each mirror is packed into a
+single-file bundle for copying onto external media. Issue/PR metadata and the
+latest release's assets live outside git, so they are saved beside the mirrors
+too. Everything a full run produces is therefore on by default; the --no-* flags
+trim it down.
 
-  python G:/DEV_MAIN/backup_github_repos.py                  # mirror repos + wikis
+  python G:/DEV_MAIN/backup_github_repos.py                   # the full backup
   python G:/DEV_MAIN/backup_github_repos.py --dest E:/backup  # ... elsewhere
-  python G:/DEV_MAIN/backup_github_repos.py --bundle             # ... + one file each
-  python G:/DEV_MAIN/backup_github_repos.py --releases --metadata
-  python G:/DEV_MAIN/backup_github_repos.py --all            # every non-fork repo
-  python G:/DEV_MAIN/backup_github_repos.py --dry-run        # list what would run
+  python G:/DEV_MAIN/backup_github_repos.py --all-releases    # every release, not just the latest
+  python G:/DEV_MAIN/backup_github_repos.py --no-bundle --no-releases   # mirrors and metadata only
+  python G:/DEV_MAIN/backup_github_repos.py --all             # every non-fork repository
+  python G:/DEV_MAIN/backup_github_repos.py --dry-run         # list what would run
 """
 
 import argparse
@@ -120,28 +123,42 @@ def bundle(mirror_path, bundle_path):
     return True, "{:.1f} MB".format(os.path.getsize(bundle_path) / 1024 / 1024)
 
 
-def fetch_releases(full_name, directory):
-    """Download every release asset not already on disk. Assets are not in git."""
+def fetch_releases(full_name, directory, every):
+    """Download release assets not already on disk. Assets are not in git.
+
+    Only the latest release is kept unless `every` is set: older assets are
+    rebuildable from the tagged source the mirror already holds.
+    """
     listing = run(
-        ["gh", "release", "list", "--repo", full_name, "--limit", "200", "--json", "tagName"]
+        ["gh", "release", "list", "--repo", full_name, "--limit", "200",
+         "--json", "tagName,isLatest"]
     )
     if listing.returncode != 0:
         return 0
-    downloaded = 0
-    for release in json.loads(listing.stdout or "[]"):
-        target = os.path.join(directory, release["tagName"].replace("/", "_"))
+    releases = json.loads(listing.stdout or "[]")
+    if not every:
+        # gh lists newest first, so its first entry stands in when no release
+        # carries the "latest" flag.
+        releases = [r for r in releases if r.get("isLatest")] or releases[:1]
+    kept = []
+    for release in releases:
+        tag = release["tagName"]
+        target = os.path.join(directory, tag.replace("/", "_"))
         if os.path.isdir(target):
+            kept.append(tag)
             continue
         os.makedirs(target, exist_ok=True)
         result = run(
-            ["gh", "release", "download", release["tagName"], "--repo", full_name,
+            ["gh", "release", "download", tag, "--repo", full_name,
              "--dir", target, "--pattern", "*"]
         )
         if result.returncode == 0:
-            downloaded += 1
+            kept.append(tag)
         elif not os.listdir(target):
             os.rmdir(target)  # a source-only release has no assets to keep
-    return downloaded
+    if os.path.isdir(directory) and not os.listdir(directory):
+        os.rmdir(directory)
+    return kept
 
 
 def fetch_metadata(full_name, directory):
@@ -173,7 +190,7 @@ def back_up(repo, dest, args):
     if ok:
         entry["head"] = head_sha(path)
         entry["refs"] = ref_count(path)
-        if args.bundle:
+        if not args.no_bundle:
             bundle_ok, bundle_note = bundle(path, os.path.join(dest, "bundles", name + ".bundle"))
             entry["bundle"] = bundle_note if bundle_ok else "FAILED: " + bundle_note
             entry["ok"] = bundle_ok
@@ -183,7 +200,7 @@ def back_up(repo, dest, args):
         wiki_ok, wiki_note = mirror(repo["url"] + ".wiki.git", wiki_path)
         if wiki_ok:
             entry["wiki"] = wiki_note
-            if args.bundle:
+            if not args.no_bundle:
                 bundle(wiki_path, os.path.join(dest, "bundles", name + ".wiki.bundle"))
         elif os.path.isdir(wiki_path):
             # An enabled-but-never-written wiki has no repository; only a wiki
@@ -191,11 +208,11 @@ def back_up(repo, dest, args):
             entry["wiki"] = "FAILED: " + wiki_note
             entry["ok"] = False
 
-    if args.releases:
-        entry["releases_downloaded"] = fetch_releases(
-            repo["nameWithOwner"], os.path.join(dest, "releases", name)
+    if not args.no_releases:
+        entry["releases"] = fetch_releases(
+            repo["nameWithOwner"], os.path.join(dest, "releases", name), args.all_releases
         )
-    if args.metadata:
+    if not args.no_metadata:
         entry["metadata"] = fetch_metadata(
             repo["nameWithOwner"], os.path.join(dest, "metadata", name)
         )
@@ -210,9 +227,10 @@ def main():
     parser.add_argument("--pattern", action="append", default=[], help="extra name pattern (repeatable)")
     parser.add_argument("--all", action="store_true", help="back up every repository, not just moleditpy ones")
     parser.add_argument("--include-forks", action="store_true", help="also back up forks (rdkit, pymatgen: large)")
-    parser.add_argument("--bundle", action="store_true", help="also pack each mirror into a single-file .bundle")
-    parser.add_argument("--releases", action="store_true", help="also download release assets")
-    parser.add_argument("--metadata", action="store_true", help="also save issues/PRs/releases as JSON")
+    parser.add_argument("--no-bundle", action="store_true", help="skip the single-file .bundle per mirror")
+    parser.add_argument("--all-releases", action="store_true", help="download every release, not just the latest")
+    parser.add_argument("--no-releases", action="store_true", help="skip release assets")
+    parser.add_argument("--no-metadata", action="store_true", help="skip the issues/PRs/releases JSON")
     parser.add_argument("--no-wiki", action="store_true", help="skip wiki repositories")
     parser.add_argument("--jobs", type=int, default=4, help="parallel repositories (default: %(default)s)")
     parser.add_argument("--dry-run", action="store_true", help="list the selected repositories and stop")
