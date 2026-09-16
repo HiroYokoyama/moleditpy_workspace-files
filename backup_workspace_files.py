@@ -29,6 +29,7 @@ ALLOWLIST = [
     ("check_wiki_versions.py", "check_wiki_versions.py"),
     ("check_issues_prs.py", "check_issues_prs.py"),
     ("backup_workspace_files.py", "backup_workspace_files.py"),
+    ("backup_github_repos.py", "backup_github_repos.py"),
     ("run_all", "run_all"),
     ("run_all.bat", "run_all.bat"),
     ("run_all.ps1", "run_all.ps1"),

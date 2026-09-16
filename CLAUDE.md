@@ -139,6 +139,22 @@ Everything outside it (the plugin repos, `note/`, `other/`, scratch directories)
 read. Files that exist only in the backup, like the Codex `AGENTS.md`, are left alone
 unless you pass `--prune`.
 
+## Backing Up the GitHub Repositories
+
+A full off-GitHub copy of every moleditpy repository — `moleditpy*` plus
+`python_molecular_editor*`, 33 of them, wikis included:
+
+```bash
+python G:/DEV_MAIN/backup_github_repos.py
+```
+
+Each becomes a bare `--mirror` clone under `backup_github/repos/<name>.git` (every
+branch, tag and note), so recovery is `git clone backup_github/repos/<name>.git`. Re-runs
+are incremental (`remote update --prune`). `--dest` picks another location (or set
+`MOLEDITPY_BACKUP_DIR`), `--dry-run` lists the selection, `--releases` and `--metadata`
+additionally pull release assets and issues/PRs as JSON — neither lives in git.
+`manifest.json` records each mirror's HEAD and ref count.
+
 ## Cross-Repo Dependency
 
 When the main app's `PluginContext` API changes, all plugin repos may need updates. The `moleditpy_pyscf-calculator` CI (`test-integration` job) clones the main app from GitHub to catch these regressions automatically. Most other plugin repos ship a `tests/plugin_api_checker.py` (with a `.moleditpy-api-allowlist`) that statically verifies every `mw.*`/`context.*` access against the main-app source when the repos are checked out as siblings (`tests/test_api.py`; skipped if the main app is absent).
