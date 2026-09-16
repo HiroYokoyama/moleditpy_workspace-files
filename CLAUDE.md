@@ -155,6 +155,11 @@ are incremental (`remote update --prune`). `--dest` picks another location (or s
 additionally pull release assets and issues/PRs as JSON — neither lives in git.
 `manifest.json` records each mirror's HEAD and ref count.
 
+`--bundle` additionally packs each mirror into a single file, `bundles/<name>.bundle`,
+which is what you copy to external media — one file per repository, cloned back with
+`git clone <name>.bundle <dir>`. A bundle is rewritten only when its refs differ from the
+mirror's, so repeat runs on unchanged repositories cost nothing.
+
 ## Cross-Repo Dependency
 
 When the main app's `PluginContext` API changes, all plugin repos may need updates. The `moleditpy_pyscf-calculator` CI (`test-integration` job) clones the main app from GitHub to catch these regressions automatically. Most other plugin repos ship a `tests/plugin_api_checker.py` (with a `.moleditpy-api-allowlist`) that statically verifies every `mw.*`/`context.*` access against the main-app source when the repos are checked out as siblings (`tests/test_api.py`; skipped if the main app is absent).

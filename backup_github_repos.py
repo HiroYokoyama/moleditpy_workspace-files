@@ -9,6 +9,7 @@ live outside git and are fetched only when asked for.
 
   python G:/DEV_MAIN/backup_github_repos.py                  # mirror repos + wikis
   python G:/DEV_MAIN/backup_github_repos.py --dest E:/backup  # ... elsewhere
+  python G:/DEV_MAIN/backup_github_repos.py --bundle             # ... + one file each
   python G:/DEV_MAIN/backup_github_repos.py --releases --metadata
   python G:/DEV_MAIN/backup_github_repos.py --all            # every non-fork repo
   python G:/DEV_MAIN/backup_github_repos.py --dry-run        # list what would run
@@ -87,6 +88,38 @@ def ref_count(path):
     return len(result.stdout.splitlines()) if result.returncode == 0 else 0
 
 
+def mirror_refs(path):
+    """The mirror's refs as `sha refname` lines, the same shape a bundle lists."""
+    result = run(["git", "--git-dir", path, "for-each-ref", "--format=%(objectname) %(refname)"])
+    return sorted(line for line in result.stdout.splitlines() if " refs/" in line)
+
+
+def bundle_refs(path):
+    """The refs an existing bundle carries, or None if it is missing or unreadable."""
+    if not os.path.isfile(path):
+        return None
+    result = run(["git", "bundle", "list-heads", path])
+    if result.returncode != 0:
+        return None
+    return sorted(line for line in result.stdout.splitlines() if " refs/" in line)
+
+
+def bundle(mirror_path, bundle_path):
+    """Pack the mirror into a single-file bundle. Returns (ok, note)."""
+    if bundle_refs(bundle_path) == mirror_refs(mirror_path):
+        return True, "current"
+    os.makedirs(os.path.dirname(bundle_path), exist_ok=True)
+    # Build beside the target so a failed run never truncates the good bundle.
+    temporary = bundle_path + ".tmp"
+    result = run(["git", "--git-dir", mirror_path, "bundle", "create", temporary, "--all"])
+    if result.returncode != 0:
+        if os.path.isfile(temporary):
+            os.remove(temporary)
+        return False, last_line(result)
+    os.replace(temporary, bundle_path)
+    return True, "{:.1f} MB".format(os.path.getsize(bundle_path) / 1024 / 1024)
+
+
 def fetch_releases(full_name, directory):
     """Download every release asset not already on disk. Assets are not in git."""
     listing = run(
@@ -129,7 +162,7 @@ def fetch_metadata(full_name, directory):
     return saved
 
 
-def back_up(repo, dest, want_releases, want_metadata, want_wiki):
+def back_up(repo, dest, args):
     """Back one repository up. Returns its manifest entry."""
     name = repo["name"]
     entry = {"name": name, "url": repo["url"], "private": repo["isPrivate"], "fork": repo["isFork"]}
@@ -140,23 +173,29 @@ def back_up(repo, dest, want_releases, want_metadata, want_wiki):
     if ok:
         entry["head"] = head_sha(path)
         entry["refs"] = ref_count(path)
+        if args.bundle:
+            bundle_ok, bundle_note = bundle(path, os.path.join(dest, "bundles", name + ".bundle"))
+            entry["bundle"] = bundle_note if bundle_ok else "FAILED: " + bundle_note
+            entry["ok"] = bundle_ok
 
-    if want_wiki and repo.get("hasWikiEnabled"):
+    if not args.no_wiki and repo.get("hasWikiEnabled"):
         wiki_path = os.path.join(dest, "repos", name + ".wiki.git")
         wiki_ok, wiki_note = mirror(repo["url"] + ".wiki.git", wiki_path)
         if wiki_ok:
             entry["wiki"] = wiki_note
+            if args.bundle:
+                bundle(wiki_path, os.path.join(dest, "bundles", name + ".wiki.bundle"))
         elif os.path.isdir(wiki_path):
             # An enabled-but-never-written wiki has no repository; only a wiki
             # that exists locally and then failed to refresh is a real failure.
             entry["wiki"] = "FAILED: " + wiki_note
             entry["ok"] = False
 
-    if want_releases:
+    if args.releases:
         entry["releases_downloaded"] = fetch_releases(
             repo["nameWithOwner"], os.path.join(dest, "releases", name)
         )
-    if want_metadata:
+    if args.metadata:
         entry["metadata"] = fetch_metadata(
             repo["nameWithOwner"], os.path.join(dest, "metadata", name)
         )
@@ -171,6 +210,7 @@ def main():
     parser.add_argument("--pattern", action="append", default=[], help="extra name pattern (repeatable)")
     parser.add_argument("--all", action="store_true", help="back up every repository, not just moleditpy ones")
     parser.add_argument("--include-forks", action="store_true", help="also back up forks (rdkit, pymatgen: large)")
+    parser.add_argument("--bundle", action="store_true", help="also pack each mirror into a single-file .bundle")
     parser.add_argument("--releases", action="store_true", help="also download release assets")
     parser.add_argument("--metadata", action="store_true", help="also save issues/PRs/releases as JSON")
     parser.add_argument("--no-wiki", action="store_true", help="skip wiki repositories")
@@ -197,14 +237,17 @@ def main():
     entries = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
         futures = [
-            pool.submit(back_up, repo, args.dest, args.releases, args.metadata, not args.no_wiki)
+            pool.submit(back_up, repo, args.dest, args)
             for repo in repos
         ]
         for done in concurrent.futures.as_completed(futures):
             entry = done.result()
             entries.append(entry)
+            detail = entry["mirror"]
+            if "bundle" in entry:
+                detail += "  bundle: " + entry["bundle"]
             print("  [{}] {:<52} {}".format(
-                "ok " if entry["ok"] else "FAIL", entry["name"], entry["mirror"]))
+                "ok " if entry["ok"] else "FAIL", entry["name"], detail))
 
     entries.sort(key=lambda e: e["name"].lower())
     manifest = {
