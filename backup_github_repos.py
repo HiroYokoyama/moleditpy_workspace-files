@@ -81,6 +81,10 @@ def force_remove(func, path, _exception):
     func(path)
 
 
+# onerror is deprecated from 3.12 on and onexc does not exist before it.
+RMTREE_CALLBACK = {"onexc" if sys.version_info >= (3, 12) else "onerror": force_remove}
+
+
 def wipe(dest):
     """Empty the destination so the run cannot inherit anything stale.
 
@@ -97,7 +101,7 @@ def wipe(dest):
             "{} is not a backup directory (no manifest.json, unfamiliar contents) -- "
             "refusing to delete it.".format(os.path.abspath(dest))
         )
-    shutil.rmtree(dest, onerror=force_remove)
+    shutil.rmtree(dest, **RMTREE_CALLBACK)
     return "deleted the previous backup"
 
 
