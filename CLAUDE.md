@@ -86,11 +86,11 @@ download. A CRLF/LF flip changes the bytes, breaks the hash, and aborts the inst
 is why it is the only repo carrying a `.gitattributes` with `* -text` — keep it, and
 preserve each file's existing endings when editing there.
 
-Every other repo has no `.gitattributes`, so the global `core.autocrlf=true` normalises
-freely and nothing downstream depends on the bytes. Endings are still per-file rather
-than per-repo (a CRLF file can sit in an otherwise-LF tree), so match the file you are
-editing to avoid whole-file diffs — but outside `moleditpy-plugins` this is diff hygiene,
-not correctness.
+**Everywhere else, do not spend any effort on line endings.** No other repo has a
+`.gitattributes`, so the global `core.autocrlf=true` and GitHub normalise whatever you
+write and nothing downstream depends on the bytes. Do not check a file's existing endings
+before editing it, do not preserve them, and do not add line-ending constraints to task
+or sub-agent briefs — it is wasted work, not diff hygiene.
 
 ## Comparing Versions
 
