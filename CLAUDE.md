@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workspace Overview
 
-`DEV_MAIN` is a multi-repo workspace for the **MoleditPy** project ecosystem — a PyQt6/RDKit/PyVista molecular editor for DFT preparation. Each subdirectory is an independent Git repository.
+`DEV_MAIN` is a multi-repo workspace for the **MoleditPy** project ecosystem — a PySide6/RDKit/PyVista molecular editor for DFT preparation. Each subdirectory is an independent Git repository.
 
 | Directory | Role |
 |---|---|
 | `python_molecular_editor/` | Main application — see `python_molecular_editor/CLAUDE.md` for full guidance |
-| `moleditpy-plugins/` | Official plugin collection (distributed separately) |
+| `moleditpy-plugins/` | Official plugin collection; canonical API checker in `api-checker/` |
+| `moleditpy-common-tools/` | Versioned canonical Zenodo, plugin release and materialization scripts |
 | `moleditpy_orca_input_generator_pro/` | ORCA Input Generator Pro plugin |
 | `moleditpy_orca_result_analyzer_plugin/` | ORCA Result Analyzer plugin |
 | `moleditpy_pyscf-calculator/` | PySCF Calculator plugin |
@@ -32,13 +33,13 @@ MOLEDITPY_HEADLESS=1 QT_QPA_PLATFORM=offscreen python tests/run_all_tests.py --n
 pylint moleditpy/src/moleditpy/
 ```
 
-**Never edit `moleditpy-linux/`** inside `python_molecular_editor/` — it is synced separately.
+MoleditPy 5 uses only `moleditpy/` on every OS. The old `moleditpy-linux/` source tree and synchronization process have been retired.
 
 ## Plugin Repos (moleditpy-plugins, *_pro, *_analyzer, *_pyscf-calculator)
 
 ### Testing
 
-Every plugin repo has its own headless test suite in `tests/` (PyQt6/RDKit/PySCF fully mocked), typically with a `plugin_api_checker.py` + `.moleditpy-api-allowlist` for static API validation against the main app:
+Every plugin repo has its own headless test suite in `tests/` (PySide6/RDKit/PySCF fully mocked), typically with a `plugin_api_checker.py` + `.moleditpy-api-allowlist` for static API validation against the main app:
 
 ```bash
 # General pattern (any plugin repo)
@@ -53,7 +54,7 @@ python -m pytest tests/test_worker_pyscf_availability.py -v
 
 Notes:
 - On Windows, `python` may resolve to the Store alias — use the full path to the real interpreter if `pytest` fails to launch.
-- `moleditpy_cif_viewer` needs `PYTEST_QT_API=pyqt6` (or its `test_all.py` runner), otherwise pytest-qt's binding auto-detection loads PySide6 first and crashes the process when both bindings are installed.
+- Use `PYTEST_QT_API=pyside6` and `QT_API=pyside6` for GUI tests; all migrated plugins use PySide6.
 
 ### Integration with the Main App
 
@@ -70,17 +71,47 @@ Running `python -m pytest tests/test_plugin_integration.py -v` locally will exer
 ### Plugin Architecture Pattern
 
 Every plugin follows the same contract:
-- Entry point: a single `.py` file with an `initialize(context: PluginContext)` function
+- Entry point: a `.py` file or package exposing an `initialize(context: PluginContext)` function
 - `context.add_menu_action(path, callback)` registers menu items
 - `context.register_save_handler / register_load_handler / register_document_reset_handler` for session persistence
 - Access to the host via `context.main_window`, `context.current_molecule`, etc.
 
-See `python_molecular_editor/docs/PLUGIN_DEVELOPMENT_MANUAL_V4.md` for the full API.
+See `python_molecular_editor/docs/PLUGIN_DEVELOPMENT_MANUAL_V5.md` for the full API.
+
+## Shared Maintenance Scripts
+
+### Canonical ownership and versions
+
+- **API checker stays in `moleditpy-plugins/api-checker/`.** Do not move its canonical engine to the common-tools repository. The engine has its own semantic version (`__version__`, currently 1.1.3); lint and format it with Ruff before copying it. `check_api.py` is a registry-aware wrapper around that engine, not a second implementation.
+- **Zenodo, ordinary plugin release helpers and materialization live in `moleditpy-common-tools/scripts/`.** The common tool bundle uses SemVer in `VERSION` (initial version 1.0.0): patch for compatible fixes, minor for compatible additions and major for breaking CLI/config changes.
+- Consumers copy only tested source revisions. `scripts/common-tools.lock.json` records the bundle version, immutable source commit and LF-normalized SHA-256 hashes. `scripts/api-checker.lock.json` records the API checker's separate canonical version, commit and hash. Never silently follow upstream `main`, edit copied scripts independently or reformat them under a consumer's different Ruff rules.
+- Repository settings belong in `scripts/zenodo-config.json`, `release-config.json` and `materialize-config.json`, not in patched copies of shared code. Preserve existing production/Sandbox record IDs, artifact names, notice files, destination packages and pinned periodic submodule revisions.
+- Update maintenance copies from a clean, tested common-tools checkout with `python tools/sync_consumers.py --repo <repository> --write`. Consult `scripts/COMMON_TOOLS.md` in each consumer. The plugin template follows the same conventions, including its separate single-file example.
+
+### Minimal testing
+
+Common script logic is tested only in its canonical repository. Do not duplicate mocked Zenodo tests or API-engine unit tests into every plugin, and do not run an application-wide suite merely for a copied maintenance-script update.
+
+- Maintenance-script tests: `moleditpy-common-tools/tests/`, one path-filtered CI job on Python 3.9 / Ubuntu 24.04.
+- API-engine tests: `moleditpy-plugins/tests_api_checker/`, one path-filtered Python 3.9 job, separate from the plugin test matrix.
+- Consumers retain their own API compatibility and integration checks against MoleditPy. These validate the consuming plugin, rather than retesting the shared engine. Select checks relevant to the change and avoid repeated slow runs.
+
+### Release formats and boundaries
+
+- Single-file plugins attach the `.py` and required notices directly; packaged plugins distribute their existing ZIP layout. Keep the distinction in release configuration.
+- Distribute wheels only for products published to PyPI. A native Rust build may use an intermediate wheel internally without distributing it as a separate release asset.
+- Keep exceptional native/server builds and independent PyPI publishing jobs local. Materialization copies only the configured modules from the existing pinned submodule.
+- **Do not unify or replace the main application's release workflow.** `python_molecular_editor/.github/workflows/release.yml`, its application builds and PyPI flow remain independent. Sharing its Zenodo helper is a separate concern.
+- Maintenance-only changes do not require plugin runtime version bumps or releases. Do not create a collection "final tag" merely because plugin work finished; a collection tag/release must be explicitly requested. Verify relevant CI and artifacts before a requested publication.
+
+### Publishing workspace documentation
+
+Stage only intended files. Do not commit investigation scripts, caches, local settings, credentials, user job lists or calculation data. When asked to update only this guide in `moleditpy_workspace-files`, copy and commit only `CLAUDE.md`; do not run the full workspace backup allowlist implicitly.
 
 ## Line Endings
 
 Line endings matter in exactly one repo: **`moleditpy-plugins`**. It ships plugin files
-as-is (raw `.py` / `.zip` served straight from the repo) and `REGISTRY/plugins.json`
+as-is (raw `.py` from the repo; package ZIPs generated as release assets) and `REGISTRY/plugins.json`
 records a `sha256` over those exact bytes, which the Plugin Installer verifies after
 download. A CRLF/LF flip changes the bytes, breaks the hash, and aborts the install. That
 is why it is the only repo carrying a `.gitattributes` with `* -text` — keep it, and
