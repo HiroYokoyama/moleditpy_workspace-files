@@ -173,7 +173,7 @@ unless you pass `--prune`.
 ## Backing Up the GitHub Repositories
 
 A full off-GitHub copy of every moleditpy repository — `moleditpy*` plus
-`python_molecular_editor*`, 33 of them, wikis included:
+`python_molecular_editor*`, wikis included:
 
 ```bash
 python G:/DEV_MAIN/backup_github_repos.py
@@ -197,6 +197,21 @@ copy. The wipe refuses to touch a directory that is not one of ours (no `manifes
 unfamiliar contents), which is the guard against a mistyped `--dest`. `--incremental`
 keeps what is there and updates it in place instead: mirrors do `remote update --prune`,
 a bundle is rewritten only when its refs differ, an already-downloaded release is skipped.
+
+Use `--resume` after a failure or interruption. It never wipes the destination:
+completed repositories with the same requested components and present artifacts are
+skipped, and failed/pending repositories are retried. `manifest.json` is replaced
+atomically after each repository, with a `complete` flag for the run. Old backups
+without completion information are reused and checked/updated on their first resume.
+Use `--incremental` when you want every mirror refreshed, rather than a resumed snapshot.
+
+Transient network failures retry three times by default, with exponential backoff;
+`--retries 5 --timeout 300` changes the retry count and per-command timeout. Failed
+clones use fresh staging directories. Bundles and release assets are published
+atomically, asset sizes and available SHA-256 digests are checked, and an unfinished
+asset directory is never treated as complete. Metadata pagination produces valid
+JSON arrays. A metadata, asset or wiki-bundle failure marks that repository failed
+without stopping other repositories. An empty repository needs no bundle.
 
 `--dest` picks another location (or set `MOLEDITPY_BACKUP_DIR`), `--dry-run` lists the
 selection and deletes nothing, `--all-releases` takes every release instead of just the

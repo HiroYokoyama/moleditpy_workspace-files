@@ -44,6 +44,28 @@ Discovers and executes test suites across all repositories in `DEV_MAIN` in a si
   run_all.bat
   ```
 
+### 3. GitHub Repository Backup
+
+`backup_github_repos.py` saves repository mirrors, portable Git bundles, wikis,
+release assets and issue/PR/release metadata. It requires Git and authenticated `gh`.
+
+```powershell
+python backup_github_repos.py --resume
+python backup_github_repos.py --resume --retries 5 --timeout 300
+python backup_github_repos.py --incremental
+```
+
+`--resume` keeps existing data and skips completed repositories from the checkpoint;
+failed or unfinished repositories are retried. Progress is saved after each repository.
+Older backups without checkpoints reuse existing mirrors and assets while checking
+and updating them. `--incremental` refreshes every repository in place. A plain run
+without either option still replaces the previous backup.
+
+Connection resets and other transient failures retry automatically. Release assets
+are verified by size and available SHA-256, and interrupted downloads are not marked
+complete. `--dest` must point to the same backup directory when resuming; `--dry-run`
+only lists the repository selection and changes nothing.
+
 ---
 
 ## Repositories & Ecosystem
