@@ -50,9 +50,13 @@ python -m pytest tests/ --cov=pyscf_calculator --cov-report=term-missing
 
 # Single test file
 python -m pytest tests/test_worker_pyscf_availability.py -v
+
+# In parallel, when a full local run is needed (requires pytest-xdist)
+python -m pytest tests/ -q -n auto
 ```
 
 Notes:
+- Run a full suite locally only when it is needed, and always with `-n auto`. While iterating, run the affected test files; for a long suite, let CI run it.
 - On Windows, `python` may resolve to the Store alias — use the full path to the real interpreter if `pytest` fails to launch.
 - Use `PYTEST_QT_API=pyside6` and `QT_API=pyside6` for GUI tests; all migrated plugins use PySide6.
 
