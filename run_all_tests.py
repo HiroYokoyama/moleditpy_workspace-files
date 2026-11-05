@@ -16,7 +16,7 @@ that this runner handles:
 * a repo that ships its own runner script is invoked through it, because that
   script is what makes a local run match CI -- it pins the Qt binding, or sets
   PYTEST_DISABLE_PLUGIN_AUTOLOAD so a locally installed pytest-qt does not
-  import a real PyQt6 over the tests' module-level stubs.
+  import a real Qt binding over the tests' module-level stubs.
 
 Usage:
     python run_all_tests.py                 # every MoleditPy suite
@@ -276,11 +276,11 @@ def main():
             print(f"  {suite.name:<45} {suite.display_cmd()}")
         return 0
 
-    # Resolve the Windows Qt DLL collision (PySide6 vs PyQt6) for every suite.
+    # Pin the Qt binding for every suite.
     env = os.environ.copy()
     env["MOLEDITPY_HEADLESS"] = "1"
     env["QT_QPA_PLATFORM"] = "offscreen"
-    env["PYTEST_QT_API"] = "pyqt6"
+    env["PYTEST_QT_API"] = "pyside6"
 
     print("=" * 76)
     print("      MOLEDITPY WORKSPACE TEST RUNNER")

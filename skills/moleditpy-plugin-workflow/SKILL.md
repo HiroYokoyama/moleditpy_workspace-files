@@ -30,9 +30,9 @@ PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "..."
 PLUGIN_CATEGORY = "Export"        # or Visualization / Optimization / ...
 PLUGIN_TAGS = ["...", "..."]      # minimal; flows into registry
-PLUGIN_DEPENDENCIES = []          # only pip extras beyond host (PyQt6/rdkit = host)
+PLUGIN_DEPENDENCIES = []          # only pip extras beyond host (PySide6/rdkit = host)
 PLUGIN_OPTIONAL_DEPENDENCIES = [] # extra-feature packages; installer never gates install on these
-PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
+PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
 ```
 
 Architecture contract (see ORCA Pro `__init__.py` for the canonical shape):
@@ -55,7 +55,7 @@ n-alkane solvents are `n-` prefixed (but plain `Heptane` IS official).
 
 ## 3. Headless tests
 
-- Every test file installs its own PyQt6/rdkit stubs via `types.ModuleType` + MagicMock
+- Every test file installs its own PySide6/rdkit stubs via `types.ModuleType` + MagicMock
   BEFORE importing the package (pattern: any `tests/test_metadata.py` in a plugin repo).
 - **Stub-superset rule**: pytest loads test modules alphabetically and the first
   `_install_stubs()` wins process-wide. Every stub list must cover the entire import
@@ -76,10 +76,7 @@ git init -b main && git add -A && git commit
 gh repo create HiroYokoyama/<repo> --public --source . --push --description "..."
 ```
 
-`gh` is now authenticated on this machine (user logged in 2026-07-22) — just call
-`gh`/`gh api`/`gh run` directly, no token export needed. (Historical note: before
-that, `gh` was logged out and required a `GH_TOKEN=$(… git credential fill …)` trick;
-that is no longer necessary.)
+`gh` must be logged in; call `gh`/`gh api`/`gh run` directly.
 Commit small chunks; push to main is fine once the repo exists, but tags/releases wait
 for the user's explicit word.
 
@@ -91,12 +88,12 @@ for the user's explicit word.
    ```bash
    gh run watch <run-id> --repo HiroYokoyama/<repo> --exit-status
    ```
-   CI installs **pytest only** (no PyQt6/RDKit/numpy), so any test file that imports
+   CI installs **pytest only** (no PySide6/RDKit/numpy), so any test file that imports
    host deps at module load MUST `pytest.skip(..., allow_module_level=True)` when they
    are absent — otherwise it errors at *collection* (not skip) and reds the run.
    Simulate CI locally before pushing with a `sys.meta_path` finder that raises
-   `ModuleNotFoundError` for PyQt6/rdkit/numpy, run under
-   `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` (drops pytest-qt/pytest-cov so their own PyQt6
+   `ModuleNotFoundError` for PySide6/rdkit/numpy, run under
+   `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` (drops pytest-qt/pytest-cov so their own Qt
    import doesn't mask the test), and confirm the files report *skipped*, not *error*.
    Note the Release workflow triggers on the tag independently of the Tests workflow —
    a green release job does NOT imply Tests passed, so check Tests explicitly.

@@ -15,15 +15,15 @@ fetched again. Pass --incremental to update in place, or --resume to skip
 completed repositories and retry failed/unfinished ones. Progress is saved after
 every repository. Transient connection errors are retried automatically.
 
-  python G:/DEV_MAIN/backup_github_repos.py                   # the full backup
-  python G:/DEV_MAIN/backup_github_repos.py --dest E:/backup  # ... elsewhere
-  python G:/DEV_MAIN/backup_github_repos.py --all-releases    # every release, not just the latest
-  python G:/DEV_MAIN/backup_github_repos.py --incremental      # refresh all in place
-  python G:/DEV_MAIN/backup_github_repos.py --resume           # retry failed/unfinished only
-  python G:/DEV_MAIN/backup_github_repos.py --retries 5 --timeout 300
-  python G:/DEV_MAIN/backup_github_repos.py --no-bundle --no-releases   # mirrors and metadata only
-  python G:/DEV_MAIN/backup_github_repos.py --all             # every non-fork repository
-  python G:/DEV_MAIN/backup_github_repos.py --dry-run         # list what would run
+  python backup_github_repos.py                   # the full backup
+  python backup_github_repos.py --dest E:/backup  # ... elsewhere
+  python backup_github_repos.py --all-releases    # every release, not just the latest
+  python backup_github_repos.py --incremental      # refresh all in place
+  python backup_github_repos.py --resume           # retry failed/unfinished only
+  python backup_github_repos.py --retries 5 --timeout 300
+  python backup_github_repos.py --no-bundle --no-releases   # mirrors and metadata only
+  python backup_github_repos.py --all             # every non-fork repository
+  python backup_github_repos.py --dry-run         # list what would run
 """
 
 import argparse

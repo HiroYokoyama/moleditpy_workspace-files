@@ -2,7 +2,7 @@
 
   repo source (PLUGIN_VERSION)  vs  REGISTRY/plugins.json  vs  the wiki pages
 
-Run from anywhere:  python G:/DEV_MAIN/check_wiki_versions.py
+Run from anywhere:  python <DEV_MAIN>/check_wiki_versions.py
 Exits non-zero when anything disagrees, so it also works as a pre-push check.
 """
 

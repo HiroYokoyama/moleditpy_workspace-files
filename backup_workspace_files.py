@@ -5,10 +5,10 @@ and skills -- into the backup checkout, then commits there. Nothing else in
 DEV_MAIN is read or touched: the plugin repos, note/, other/ and every scratch
 directory are outside the allowlist by construction.
 
-  python G:/DEV_MAIN/backup_workspace_files.py            # copy + commit
-  python G:/DEV_MAIN/backup_workspace_files.py --push     # ... and push
-  python G:/DEV_MAIN/backup_workspace_files.py --dry-run  # show what would change
-  python G:/DEV_MAIN/backup_workspace_files.py --prune    # also drop stale copies
+  python backup_workspace_files.py            # copy + commit
+  python backup_workspace_files.py --push     # ... and push
+  python backup_workspace_files.py --dry-run  # show what would change
+  python backup_workspace_files.py --prune    # also drop stale copies
 """
 
 import argparse

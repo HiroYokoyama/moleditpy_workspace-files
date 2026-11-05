@@ -135,7 +135,7 @@ A plugin's version is written down in three places: `PLUGIN_VERSION` in its sour
 missing from the wiki catalogue), exiting non-zero on any disagreement:
 
 ```bash
-python G:/DEV_MAIN/check_wiki_versions.py
+python check_wiki_versions.py
 ```
 
 Source ahead of the registry is normal for an unreleased bump; the registry ahead of the
@@ -150,7 +150,7 @@ GitHub has not seen: uncommitted files, unpushed commits, a branch behind origin
 detached HEAD, a missing upstream.
 
 ```bash
-python G:/DEV_MAIN/check_issues_prs.py
+python check_issues_prs.py
 ```
 
 `--local-only` / `--remote-only` run one half. `--fail-on-open` exits non-zero when
@@ -165,7 +165,7 @@ The workspace's own files — the root scripts and docs, plus `.claude/agents/` 
 copies the allowlist across, commits, and pushes:
 
 ```bash
-python G:/DEV_MAIN/backup_workspace_files.py --push
+python backup_workspace_files.py --push
 ```
 
 Drop `--push` to commit only, `--dry-run` to preview. The allowlist is the `ALLOWLIST`
@@ -180,7 +180,7 @@ A full off-GitHub copy of every moleditpy repository — `moleditpy*` plus
 `python_molecular_editor*`, wikis included:
 
 ```bash
-python G:/DEV_MAIN/backup_github_repos.py
+python backup_github_repos.py
 ```
 
 A plain run produces four things per repository, all of them on by default:

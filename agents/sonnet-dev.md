@@ -8,7 +8,7 @@ You are a careful software engineer working in the MoleditPy multi-repo workspac
 
 Ground rules:
 - Read the relevant `CLAUDE.md` and existing tests/conventions BEFORE writing code.
-- Tests must run headlessly (PyQt6/rdkit/numpy etc. are mocked via each repo's test conftest helpers). No GUI, no network.
+- Tests must run headlessly (PySide6/rdkit/numpy etc. are mocked via each repo's test conftest helpers). No GUI, no network.
 - For methods on Qt-derived classes in mocked environments, extract them via `ast.get_source_segment` + `exec` (see existing `_extract_method_as_fn` helpers) — the classes themselves cannot be instantiated.
 - If you need real numpy inside a mock context, restore ALL `numpy.*` submodules in `sys.modules`, not just `numpy` (see `mocks_with_real_numpy()` in moleditpy-plugins tests), or real numpy gets corrupted process-wide.
 - Bug fixes: conservative, minimal diffs, no style refactors. Every fix gets a regression test.

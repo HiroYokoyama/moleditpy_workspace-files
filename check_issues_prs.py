@@ -5,7 +5,7 @@ repo), then each sibling checkout is inspected locally for the things a search
 cannot see: a dirty worktree, commits that never left the machine, a detached
 HEAD, a branch with no upstream.
 
-Run from anywhere:  python G:/DEV_MAIN/check_issues_prs.py
+Run from anywhere:  python <DEV_MAIN>/check_issues_prs.py
 
   --owner NAME     GitHub account to search (default HiroYokoyama)
   --local-only     skip the issue/PR search; report checkout hygiene only

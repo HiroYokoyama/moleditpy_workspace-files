@@ -1,6 +1,6 @@
 # DEV_MAIN Workspace
 
-`DEV_MAIN` is the multi-repository workspace for the **MoleditPy** ecosystem — a modular PyQt6 / RDKit / PyVista molecular editor and quantum chemistry (DFT) calculation preparation toolkit.
+`DEV_MAIN` is the multi-repository workspace for the **MoleditPy** ecosystem — a modular PySide6 / RDKit / PyVista molecular editor and quantum chemistry (DFT) calculation preparation toolkit.
 
 Each directory in `DEV_MAIN` represents an independent Git repository, including the main desktop application, MCP server, web interface, installer, and official plugins.
 
@@ -33,7 +33,7 @@ Discovers and executes test suites across all repositories in `DEV_MAIN` in a si
 - **Script**: `run_all_tests.py` (with `run_all.bat`, `run_all.ps1`, and `run_all` wrappers)
 - **Features**:
   - Automatically discovers all directories containing a `tests/` folder
-  - Handles environment variables (`MOLEDITPY_HEADLESS=1`, `QT_QPA_PLATFORM=offscreen`, `PYTEST_QT_API=pyqt6`) to prevent Qt binding collisions
+  - Handles environment variables (`MOLEDITPY_HEADLESS=1`, `QT_QPA_PLATFORM=offscreen`, `PYTEST_QT_API=pyside6`) to prevent Qt binding collisions
   - Runs main app test suite and pytest suites for all plugins
   - Outputs per-suite execution timing and failure summaries
 - **Usage**:
