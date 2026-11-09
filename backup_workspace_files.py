@@ -44,7 +44,14 @@ ALLOWLIST = [
 ]
 
 # Machine-local or generated files that must never leave this machine.
-SKIP_NAMES = {"settings.local.json", ".DS_Store", "Thumbs.db"}
+SKIP_NAMES = {
+    "settings.local.json",
+    ".DS_Store",
+    "Thumbs.db",
+    "backup_repos.json",
+    "backup_config.json",
+    "backup_repos.txt",
+}
 SKIP_DIRS = {"__pycache__", ".git", ".pytest_cache", ".ruff_cache"}
 
 

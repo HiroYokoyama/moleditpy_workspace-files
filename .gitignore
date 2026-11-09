@@ -1,1 +1,5 @@
 __pycache__/
+backup_repos.json
+backup_config.json
+backup_repos.txt
+*.local.json

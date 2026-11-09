@@ -248,5 +248,71 @@ class BackupTests(unittest.TestCase):
             )
 
 
+    def test_find_config_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cfg = Path(temporary) / "backup_repos.json"
+            cfg.write_text("[]")
+            self.assertEqual(backup.find_config_file(str(cfg)), str(cfg))
+            with patch.object(backup, "DEFAULT_CONFIG_FILES", [str(cfg)]):
+                self.assertEqual(backup.find_config_file(), str(cfg))
+            with patch.object(backup, "DEFAULT_CONFIG_FILES", [str(Path(temporary) / "none.json")]):
+                self.assertIsNone(backup.find_config_file())
+
+    def test_load_urls_from_config_json_and_text(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            # List format
+            p1 = Path(temporary) / "list.json"
+            p1.write_text(json.dumps(["https://github.com/org/r1", "https://github.com/org/r2"]))
+            self.assertEqual(
+                backup.load_urls_from_config(str(p1)),
+                ["https://github.com/org/r1", "https://github.com/org/r2"],
+            )
+
+            # Dict with objects format
+            p2 = Path(temporary) / "dict.json"
+            p2.write_text(json.dumps({"repos": [{"url": "https://github.com/org/r3"}]}))
+            self.assertEqual(
+                backup.load_urls_from_config(str(p2)),
+                ["https://github.com/org/r3"],
+            )
+
+            # Plain text format
+            p3 = Path(temporary) / "repos.txt"
+            p3.write_text("# comment\nhttps://github.com/org/r4\n\nhttps://github.com/org/r5\n")
+            self.assertEqual(
+                backup.load_urls_from_config(str(p3)),
+                ["https://github.com/org/r4", "https://github.com/org/r5"],
+            )
+
+    def test_repo_from_url_with_gh_and_fallback(self):
+        # When gh repo view succeeds
+        with patch.object(
+            backup,
+            "run",
+            return_value=result(out=json.dumps({"name": "r1", "nameWithOwner": "o/r1", "url": "https://github.com/o/r1"})),
+        ):
+            repo = backup.repo_from_url("https://github.com/o/r1")
+            self.assertEqual(repo["name"], "r1")
+            self.assertEqual(repo["nameWithOwner"], "o/r1")
+
+        # When gh repo view fails (fallback)
+        with patch.object(backup, "run", return_value=result(1, err="offline")):
+            repo = backup.repo_from_url("https://github.com/user/my-repo.git")
+            self.assertEqual(repo["name"], "my-repo")
+            self.assertEqual(repo["nameWithOwner"], "user/my-repo")
+            self.assertEqual(repo["url"], "https://github.com/user/my-repo.git")
+            self.assertTrue(repo["hasWikiEnabled"])
+
+    def test_merge_repos_deduplication(self):
+        base = [{"name": "repo1", "nameWithOwner": "o/repo1", "url": "https://github.com/o/repo1"}]
+        extra = [
+            {"name": "repo1", "nameWithOwner": "o/repo1", "url": "https://github.com/o/repo1"},
+            {"name": "repo2", "nameWithOwner": "o/repo2", "url": "https://github.com/o/repo2"},
+        ]
+        merged = backup.merge_repos(base, extra)
+        self.assertEqual(len(merged), 2)
+        self.assertEqual([r["name"] for r in merged], ["repo1", "repo2"])
+
+
 if __name__ == "__main__":
     unittest.main()

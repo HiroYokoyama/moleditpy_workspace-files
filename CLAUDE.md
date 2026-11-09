@@ -220,6 +220,8 @@ without stopping other repositories. An empty repository needs no bundle.
 `--dest` picks another location (or set `MOLEDITPY_BACKUP_DIR`), `--dry-run` lists the
 selection and deletes nothing, `--all-releases` takes every release instead of just the
 latest, and `--no-bundle` / `--no-releases` / `--no-metadata` / `--no-wiki` trim a run down.
+An optional `--config <path>` specifies extra repositories to back up; if `backup_repos.json`
+or `backup_config.json` exists in the script directory, it is read automatically by default.
 
 ## Cross-Repo Dependency
 

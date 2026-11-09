@@ -47,6 +47,12 @@ DEFAULT_DEST = os.environ.get(
 # A repository is backed up when its name matches one of these.
 PATTERNS = ["moleditpy*", "python_molecular_editor*"]
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CONFIG_FILES = [
+    os.path.join(SCRIPT_DIR, "backup_repos.json"),
+    os.path.join(SCRIPT_DIR, "backup_config.json"),
+]
+
 # git must never stop for a credential prompt: gh's credential helper supplies
 # the token, and anything it cannot answer is a failure, not a question.
 ENV = dict(os.environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never")
@@ -144,6 +150,134 @@ def read_manifest(dest):
 def last_line(result):
     text = (result.stderr or result.stdout).strip()
     return text.splitlines()[-1] if text else "git failed"
+
+
+def find_config_file(custom_path=None):
+    if custom_path:
+        if os.path.isfile(custom_path):
+            return custom_path
+        sys.exit(f"Config file not found: {custom_path}")
+    for candidate in DEFAULT_CONFIG_FILES:
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+def load_urls_from_config(config_path):
+    """Load repository URLs or identifiers from a JSON or text config file."""
+    if not config_path or not os.path.isfile(config_path):
+        return []
+    try:
+        with open(config_path, "r", encoding="utf-8") as handle:
+            content = handle.read().strip()
+    except OSError as err:
+        print(f"Warning: could not read config file {config_path}: {err}", file=sys.stderr)
+        return []
+
+    if not content:
+        return []
+
+    urls = []
+    try:
+        data = json.loads(content)
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, str) and item.strip():
+                    urls.append(item.strip())
+                elif isinstance(item, dict) and "url" in item and item["url"].strip():
+                    urls.append(item["url"].strip())
+        elif isinstance(data, dict):
+            repo_list = data.get("repos") or data.get("repositories") or data.get("urls") or []
+            if isinstance(repo_list, list):
+                for item in repo_list:
+                    if isinstance(item, str) and item.strip():
+                        urls.append(item.strip())
+                    elif isinstance(item, dict) and "url" in item and item["url"].strip():
+                        urls.append(item["url"].strip())
+    except ValueError:
+        for line in content.splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                urls.append(line)
+
+    return urls
+
+
+def repo_from_url(url_or_target):
+    """Resolve a repository URL or name into a repo metadata dict."""
+    import re
+
+    url_str = url_or_target.strip()
+    fields = "name,nameWithOwner,url,isPrivate,isFork,description,updatedAt,diskUsage,hasWikiEnabled"
+    res = run(["gh", "repo", "view", url_str, "--json", fields])
+    if res.returncode == 0:
+        try:
+            return json.loads(res.stdout)
+        except ValueError:
+            pass
+
+    clean = url_str.rstrip("/")
+    if clean.endswith(".git"):
+        clean = clean[:-4]
+
+    match = re.search(r"[:/]([a-zA-Z0-9_.-]+)/([a-zA-Z0-9_.-]+)$", clean)
+    if match:
+        owner, name = match.group(1), match.group(2)
+        name_with_owner = f"{owner}/{name}"
+    else:
+        name = clean.split("/")[-1]
+        name_with_owner = name
+
+    repo_url = (
+        url_str
+        if (
+            url_str.startswith("http://")
+            or url_str.startswith("https://")
+            or url_str.startswith("git@")
+        )
+        else f"https://github.com/{name_with_owner}"
+    )
+
+    return {
+        "name": name,
+        "nameWithOwner": name_with_owner,
+        "url": repo_url,
+        "isPrivate": False,
+        "isFork": False,
+        "description": "",
+        "updatedAt": "",
+        "diskUsage": 0,
+        "hasWikiEnabled": True,
+    }
+
+
+def merge_repos(base_repos, extra_repos):
+    """Merge repository lists, avoiding duplicate names or URLs."""
+    seen_keys = set()
+    merged = []
+
+    def repo_key(r):
+        return (r.get("nameWithOwner") or r.get("name") or "").lower()
+
+    for r in base_repos:
+        k = repo_key(r)
+        url_k = r.get("url", "").rstrip("/").lower()
+        seen_keys.add(k)
+        if url_k:
+            seen_keys.add(url_k)
+        merged.append(r)
+
+    for r in extra_repos:
+        k = repo_key(r)
+        url_k = r.get("url", "").rstrip("/").lower()
+        if k in seen_keys or (url_k and url_k in seen_keys):
+            continue
+        seen_keys.add(k)
+        if url_k:
+            seen_keys.add(url_k)
+        merged.append(r)
+
+    return sorted(merged, key=lambda r: r["name"].lower())
 
 
 def list_repos(include_forks, patterns, take_all):
@@ -554,6 +688,11 @@ def main():
         "--pattern", action="append", default=[], help="extra name pattern (repeatable)"
     )
     parser.add_argument(
+        "--config",
+        default=None,
+        help="path to config file with extra repo URLs (default: backup_repos.json in script dir if present)",
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
         help="back up every repository, not just moleditpy ones",
@@ -622,6 +761,17 @@ def main():
         sys.exit("gh is not authenticated -- run: gh auth login")
 
     repos = list_repos(args.include_forks, PATTERNS + args.pattern, args.all)
+
+    config_file = find_config_file(args.config)
+    if config_file:
+        extra_urls = load_urls_from_config(config_file)
+        if extra_urls:
+            print(
+                f"Loaded {len(extra_urls)} extra repositories from {os.path.basename(config_file)}"
+            )
+            extra_repos = [repo_from_url(u) for u in extra_urls]
+            repos = merge_repos(repos, extra_repos)
+
     if not repos:
         sys.exit("no repositories matched")
 
