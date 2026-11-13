@@ -3,6 +3,7 @@
   repo source (PLUGIN_VERSION)  vs  REGISTRY/plugins.json  vs  the wiki pages
 
 Run from anywhere:  python <DEV_MAIN>/check_wiki_versions.py
+Only HiroYokoyama's plugins are checked; other authors' entries are not ours to document.
 Exits non-zero when anything disagrees, so it also works as a pre-push check.
 """
 
@@ -19,6 +20,7 @@ WIKI = os.path.join(ROOT, "moleditpy-plugins.wiki")
 VERSION_RE = re.compile(r"""^PLUGIN_VERSION\s*=\s*["']([^"']+)["']""", re.M)
 # "documents **Name v1.2.3**" (EN) / "**Name v1.2.3** を対象に" (JP)
 FOOTER_RE = re.compile(r"\*\*(.+?) v([0-9][^*]*?)\*\*")
+AUTHOR = "hiroyokoyama"
 
 
 def read(path):
@@ -57,7 +59,8 @@ def source_version(plugin):
 def main():
     plugins = json.loads(read(REGISTRY))
     plugins = plugins["plugins"] if isinstance(plugins, dict) else plugins
-    visible = [p for p in plugins if p.get("visible", True)]
+    visible = [p for p in plugins if p.get("visible", True)
+               and (p.get("author") or "").lower() == AUTHOR]
     catalogues = {name: read(os.path.join(WIKI, name))
                   for name in ("Official-Plugins.md", "Official-Plugins-JP.md")}
     problems = []
