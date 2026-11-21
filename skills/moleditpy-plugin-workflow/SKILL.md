@@ -11,6 +11,12 @@ standard), `moleditpy-plugins/plugins/*` (single-file plugins).
 
 ## 1. Scaffold from the ORCA Pro template
 
+Naming: `<pkg_name>` (or a single file's stem) **is** the registry ID and the
+`moleditpy -r` name. Take it from `PLUGIN_NAME` in lowercase snake_case without
+abbreviating, keep it a valid identifier (no `-`, no leading digit), and do not
+pass a different `--plugin-id` when registering. Fix it before the first release;
+renaming later moves users' installed copies and `settings.json`.
+
 New repo layout (sibling dir under DEV_MAIN, name `moleditpy_<snake_name>`):
 
 ```
