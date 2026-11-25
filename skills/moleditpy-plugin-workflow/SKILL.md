@@ -39,6 +39,7 @@ PLUGIN_TAGS = ["...", "..."]      # minimal; flows into registry
 PLUGIN_DEPENDENCIES = []          # only pip extras beyond host (PySide6/rdkit = host)
 PLUGIN_OPTIONAL_DEPENDENCIES = [] # extra-feature packages; installer never gates install on these
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
+PLUGIN_LICENSE = "LGPL-3.0-or-later"  # registry reads it; missing -> NOASSERTION
 ```
 
 Architecture contract (see ORCA Pro `__init__.py` for the canonical shape):
